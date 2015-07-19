@@ -2,7 +2,7 @@
 import fileinput
 import sys
 import re
-
+from datetime import datetime
 
 # Source http://blog.kowalczyk.info/article/a1e/Parsing-s3-log-files-in-python.html
 
@@ -24,6 +24,8 @@ s3_names = ("bucket_owner", "bucket", "datetime", "ip", "requestor_id",
 "s3_error", "bytes_sent", "object_size", "total_time", "turn_around_time",
 "referer", "user_agent")
 
+s3_integers = ("http_status", "bytes_sent", "object_size", "total_time", "turn_around_time")
+
 def parse_s3_log_line(line):
     match = s3_line_logpat.match(line)
     result = [match.group(1+n) for n in range(17)]
@@ -32,7 +34,17 @@ def parse_s3_log_line(line):
 def dump_parsed_s3_line(parsed):
     output = "{ "
     for (name, val) in zip(s3_names, parsed):
-        output += ("\"%s\": \"%s\", " % (name, val) )
+        if (name in s3_integers):
+            if val.isdigit():
+                output += ("\"%s\": %s, " % (name, val) )
+            else:
+                output += ("\"%s\": %s, " % (name, 0) )
+        elif (name == "datetime"):
+            tmpTime = datetime.strptime(val, "%d/%b/%Y:%H:%M:%S +0000")
+            valTime = datetime.strftime(tmpTime, "%Y-%m-%dT%H:%M:%S.000+00:00")
+            output += ("\"keen\": {\"%s\": \"%s\"}, " % ("timestamp", valTime) )
+        else:   
+            output += ("\"%s\": \"%s\", " % (name, val) )
     sys.stdout.write(output[:-2] + " }")
     sys.stdout.write("\n")
 
